@@ -135,9 +135,8 @@ ai-pdf-assistant/
 
 ## 📸 Screenshots
 
-> _Add screenshots of the hero section, chat interface, and sidebar here once deployed locally, e.g.:_
->
-> `docs/screenshot-hero.png`, `docs/screenshot-chat.png`, `docs/screenshot-sidebar.png`
+
+> `docs/hero.png`, `chat.png`, `sidebar.png`
 
 ---
 

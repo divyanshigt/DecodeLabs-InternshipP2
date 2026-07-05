@@ -8,22 +8,23 @@ import numpy as np
 import streamlit as st
 from dotenv import load_dotenv
 
-# Third-party ML / retrieval stack
+
 try:
     import faiss
     from pypdf import PdfReader
     from sentence_transformers import SentenceTransformer
     from langchain_text_splitters import RecursiveCharacterTextSplitter
     from groq import Groq
-except ImportError as missing_dep:  # pragma: no cover - environment guard
-    # Streamlit hasn't rendered a page yet at import time in some execution
-    # contexts, so we raise a clear message that will surface in the terminal.
+except ImportError as missing_dep:
+
+
     raise SystemExit(
         f"Missing dependency: {missing_dep}. "
         "Run `pip install -r requirements.txt` before starting the app."
     )
 
 load_dotenv()
+
 
 APP_NAME = "AI PDF Assistant"
 APP_TAGLINE = "Upload a PDF and ask intelligent questions powered by Llama 3."
@@ -67,6 +68,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+
 def inject_custom_css() -> None:
     """Inject the complete custom CSS theme, overriding all Streamlit defaults."""
     st.markdown(
@@ -87,10 +89,18 @@ def inject_custom_css() -> None:
             color: #e6e8ef;
         }
 
-        /* Hide default Streamlit chrome */
-        #MainMenu, footer, header[data-testid="stHeader"] {
+        /* Hide default Streamlit chrome (but keep the header element itself
+           intact — it houses the sidebar expand/collapse control, so we only
+           make it transparent rather than collapsing its height to 0). */
+        #MainMenu, footer {
             visibility: hidden;
             height: 0;
+        }
+        header[data-testid="stHeader"] {
+            background: transparent;
+        }
+        header[data-testid="stHeader"] * {
+            color: #e6e8ef;
         }
         .block-container {
             padding-top: 1.5rem;
@@ -347,10 +357,11 @@ def get_groq_client() -> Optional[Groq]:
     except Exception:
         return None
 
+
 def init_session_state() -> None:
     """Initialize all session-state keys used across the app, exactly once."""
     defaults = {
-        "messages": [],            # list[{"role", "content", "timestamp"}]
+        "messages": [],
         "pdf_processed": False,
         "pdf_name": None,
         "pdf_pages": 0,
@@ -407,7 +418,7 @@ def extract_text_from_pdf(uploaded_file) -> Tuple[str, int]:
         try:
             page_texts.append(page.extract_text() or "")
         except Exception:
-            # Skip unreadable pages rather than failing the whole document.
+
             page_texts.append("")
 
     full_text = "\n".join(page_texts).strip()
@@ -456,17 +467,17 @@ def process_uploaded_pdf(uploaded_file) -> None:
     """
     progress_bar = st.progress(0, text="Reading PDF...")
     try:
-        # Step 1: extract text
+
         full_text, page_count = extract_text_from_pdf(uploaded_file)
         progress_bar.progress(30, text="Splitting into chunks...")
 
-        # Step 2: chunk
+
         chunks = split_text_into_chunks(full_text)
         if not chunks:
             raise ValueError("Document text could not be split into usable chunks.")
         progress_bar.progress(55, text="Loading embedding model...")
 
-        # Step 3: embed + index
+
         model = load_embedding_model()
         progress_bar.progress(75, text="Generating embeddings and building index...")
         index, dimension = build_faiss_index(chunks, model)
@@ -474,7 +485,7 @@ def process_uploaded_pdf(uploaded_file) -> None:
         progress_bar.progress(100, text="Done!")
         time.sleep(0.3)
 
-        # Persist results into session state
+
         st.session_state.pdf_name = uploaded_file.name
         st.session_state.pdf_pages = page_count
         st.session_state.pdf_chars = len(full_text)
@@ -495,6 +506,7 @@ def process_uploaded_pdf(uploaded_file) -> None:
         st.session_state.pdf_processed = False
     finally:
         progress_bar.empty()
+
 
 def retrieve_relevant_chunks(question: str, k: int = TOP_K_CHUNKS) -> List[str]:
     """Embed the question and return the top-k most similar document chunks."""
@@ -521,8 +533,7 @@ def build_messages(question: str, context_chunks: List[str]) -> List[dict]:
         context=context_text,
     )
 
-    # Include the last few turns for conversational continuity, without
-    # letting history override the document-grounding rules above.
+
     history_messages = []
     for msg in st.session_state.messages[-6:]:
         history_messages.append({"role": msg["role"], "content": msg["content"]})
@@ -612,7 +623,7 @@ def render_sidebar() -> None:
         )
         st.markdown('<p class="about-text">Document Q&A, grounded and hallucination-free.</p>', unsafe_allow_html=True)
 
-        # ---------------- System status ----------------
+
         st.markdown('<div class="sidebar-section-title">System Status</div>', unsafe_allow_html=True)
 
         groq_ok = get_groq_client() is not None
@@ -628,7 +639,7 @@ def render_sidebar() -> None:
         )
         st.markdown(status_html, unsafe_allow_html=True)
 
-        # ---------------- PDF info ----------------
+
         st.markdown('<div class="sidebar-section-title">Document</div>', unsafe_allow_html=True)
         if st.session_state.pdf_processed:
             st.markdown(
@@ -647,7 +658,7 @@ def render_sidebar() -> None:
                 unsafe_allow_html=True,
             )
 
-        # ---------------- Actions ----------------
+
         st.markdown('<div class="sidebar-section-title">Actions</div>', unsafe_allow_html=True)
 
         col1, col2 = st.columns(2)
@@ -671,7 +682,7 @@ def render_sidebar() -> None:
                 use_container_width=True,
             )
 
-        # ---------------- Theme / about ----------------
+
         st.markdown('<div class="sidebar-section-title">About</div>', unsafe_allow_html=True)
         st.markdown(
             """
@@ -747,14 +758,14 @@ def render_chat_interface() -> None:
     render_metrics()
     st.markdown("<div style='height: 0.6rem;'></div>", unsafe_allow_html=True)
 
-    # ---- Render existing conversation ----
+
     for msg in st.session_state.messages:
         avatar = "🧑‍💻" if msg["role"] == "user" else "🤖"
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"])
             st.markdown(f'<div class="chat-timestamp">{msg["timestamp"]}</div>', unsafe_allow_html=True)
 
-    # ---- New user input ----
+
     question = st.chat_input("Ask a question about your PDF...")
     if not question:
         return
@@ -776,6 +787,7 @@ def render_chat_interface() -> None:
     st.session_state.messages.append(
         {"role": "assistant", "content": response_text, "timestamp": response_time}
     )
+
 
 def main() -> None:
     init_session_state()
